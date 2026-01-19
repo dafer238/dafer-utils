@@ -18,6 +18,7 @@ impl Default for MyApp {
                 file_type: FileType::default(),
                 load_mode: LoadMode::default(),
                 selected_path: None,
+                status_message: None,
             },
         }
     }
@@ -25,11 +26,9 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // scale everything by 20% (1.2x)
-            ctx.set_zoom_factor(1.2);
+        // scale everything by 20% (1.2x)
+        ctx.set_zoom_factor(1.2);
 
-            main_ui(ui, &mut self.state);
-        });
+        main_ui(ctx, &mut self.state);
     }
 }

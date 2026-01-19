@@ -8,4 +8,6 @@ pub struct AppState {
     pub file_type: FileType,
     pub load_mode: LoadMode,
     pub selected_path: Option<PathBuf>,
+    /// Status message for the UI status line (e.g., "Loading...", "Computing...", etc.)
+    pub status_message: Option<String>,
 }
