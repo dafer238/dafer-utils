@@ -25,6 +25,7 @@ pub struct AppState {
 
     // ── Preview Cache ──
     pub preview_df: Option<DataFrame>,
+    pub full_df: Option<DataFrame>,
     pub preview_rows: u32,
     pub preview_dirty: bool,
 
@@ -101,6 +102,7 @@ impl Default for AppState {
             redo_stack: Vec::new(),
 
             preview_df: None,
+            full_df: None,
             preview_rows: 200,
             preview_dirty: false,
 

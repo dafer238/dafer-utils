@@ -24,8 +24,8 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_zoom_factor(1.2);
 
-        // Limit repaint rate to ~90 fps instead of continuous
-        ctx.request_repaint_after(std::time::Duration::from_secs_f64(1.0 / 90.0));
+        // On-demand repaint: only repaint when UI interaction happens.
+        // This eliminates the continuous 90fps loop that made tables slow.
 
         // Recompute preview when pipeline changes (once per dirty flag)
         if self.state.preview_dirty {
@@ -73,19 +73,41 @@ impl MyApp {
                         .collect();
                     state.column_dtypes =
                         df.dtypes().iter().map(|d| format!("{}", d)).collect();
-                    state.column_stats = data_loader::column_stats(&df);
                     state.row_count = Some(df.height());
+
+                    // Compute stats and plot data from the FULL dataset
+                    match query_engine::execute(source, &state.operations) {
+                        Ok(full) => {
+                            state.column_stats = data_loader::column_stats(&full);
+                            // Format min/max floats to 4 decimal places for display
+                            for stat in &mut state.column_stats {
+                                stat.min = stat.min.take().map(|s| format_stat_float(&s));
+                                stat.max = stat.max.take().map(|s| format_stat_float(&s));
+                            }
+                            state.full_df = Some(full);
+                        }
+                        Err(_) => {
+                            state.column_stats = data_loader::column_stats(&df);
+                            for stat in &mut state.column_stats {
+                                stat.min = stat.min.take().map(|s| format_stat_float(&s));
+                                stat.max = stat.max.take().map(|s| format_stat_float(&s));
+                            }
+                            state.full_df = None;
+                        }
+                    }
 
                     if state.select_checks.len() != state.column_names.len() {
                         state.select_checks = vec![true; state.column_names.len()];
                     }
 
+                    let total_rows = state.full_df.as_ref().map(|f| f.height()).unwrap_or(df.height());
                     state.preview_df = Some(df);
                     state.plot_dirty = true;
                     state.table_cache_dirty = true;
                     state.status = format!(
-                        "Preview: {} rows x {} columns",
+                        "Showing {} of {} rows x {} columns",
                         state.row_count.unwrap_or(0),
+                        total_rows,
                         state.column_names.len()
                     );
                 }
@@ -98,6 +120,7 @@ impl MyApp {
             }
         } else {
             state.preview_df = None;
+            state.full_df = None;
             state.column_names.clear();
             state.column_dtypes.clear();
             state.column_stats.clear();
@@ -199,4 +222,15 @@ fn natural_cmp(a: &str, b: &str) -> Ordering {
         (Ok(an), Ok(bn)) => an.partial_cmp(&bn).unwrap_or(Ordering::Equal),
         _ => a.cmp(b),
     }
+}
+
+/// Format a stat value: if it parses as a float, display with 4 decimal places.
+/// Otherwise return as-is (integers, strings, dates, etc.).
+fn format_stat_float(s: &str) -> String {
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        if let Ok(f) = s.parse::<f64>() {
+            return format!("{:.4}", f);
+        }
+    }
+    s.to_string()
 }

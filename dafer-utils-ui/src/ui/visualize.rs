@@ -307,7 +307,9 @@ fn recompute_plot_data(state: &mut AppState) {
         return;
     }
 
-    if let Some(ref df) = state.preview_df {
+    // Use full dataset for plotting (fall back to preview if unavailable)
+    let plot_df = state.full_df.as_ref().or(state.preview_df.as_ref());
+    if let Some(df) = plot_df {
         // Check if X column is datetime/date type
         let x_vals = if let Ok(series) = df.column(&state.plot_x) {
             match series.dtype() {
@@ -384,7 +386,8 @@ fn render_histogram(ui: &mut egui::Ui, state: &AppState, plot_height: f32) {
         return;
     };
 
-    let df = match &state.preview_df {
+    // Use full dataset for histogram (fall back to preview if unavailable)
+    let df = match state.full_df.as_ref().or(state.preview_df.as_ref()) {
         Some(df) => df,
         None => {
             ui.label("No data.");
