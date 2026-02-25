@@ -10,3 +10,4 @@ polars.workspace = true
 anyhow.workspace = true
 csv.workspace = true
 serde.workspace = true
+bincode.workspace = true

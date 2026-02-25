@@ -9,7 +9,11 @@ authors.workspace = true
 dafer-utils = { path = "../dafer-utils" }
 
 polars.workspace = true
+anyhow.workspace = true
+bincode.workspace = true
 
 eframe = { version = "0.33.3", features = ["wgpu"] }
 rfd = "0.17.2"
 egui_extras = "0.33.3"
+egui_plot.workspace = true
+chrono = "0.4"

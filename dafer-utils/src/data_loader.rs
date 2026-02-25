@@ -2,9 +2,12 @@ use anyhow::Result;
 use polars::prelude::*;
 
 /// Scan a CSV file as a LazyFrame.
+/// Uses a high schema inference length to correctly detect numeric columns
+/// even when values are quoted (e.g. "2.124879").
 pub fn scan_csv(path: &str) -> Result<LazyFrame, PolarsError> {
     LazyCsvReader::new(PlPath::from_str(path))
         .with_has_header(true)
+        .with_infer_schema_length(Some(10000))
         .finish()
 }
 
@@ -81,4 +84,38 @@ pub struct ColumnStats {
     pub max: Option<String>,
     pub null_count: usize,
     pub error_count: usize,
+}
+
+// ─── Auto-detection of numeric String columns ────────────────────────────────
+
+/// Detect String columns that contain primarily numeric values.
+/// Returns column names that should be auto-cast to Float64.
+pub fn detect_numeric_string_columns(df: &DataFrame) -> Vec<String> {
+    df.get_columns()
+        .iter()
+        .filter(|s| s.dtype() == &DataType::String)
+        .filter(|s| is_numeric_string_column(s))
+        .map(|s| s.name().to_string())
+        .collect()
+}
+
+/// Check if a String column contains primarily numeric values by sampling.
+fn is_numeric_string_column(col: &Column) -> bool {
+    let series = col.as_materialized_series();
+    let Ok(str_ca) = series.str() else {
+        return false;
+    };
+    let sample_size = series.len().min(200);
+    let mut numeric_count = 0usize;
+    let mut non_null_count = 0usize;
+    for i in 0..sample_size {
+        if let Some(val) = str_ca.get(i) {
+            non_null_count += 1;
+            let trimmed = val.trim();
+            if !trimmed.is_empty() && trimmed.parse::<f64>().is_ok() {
+                numeric_count += 1;
+            }
+        }
+    }
+    non_null_count > 0 && numeric_count * 10 >= non_null_count * 9
 }
