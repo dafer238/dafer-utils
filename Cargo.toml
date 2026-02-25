@@ -2,6 +2,7 @@
 members = [
     "dafer-utils",
     "dafer-utils-ui",
+    "dafer-utils-tauri",
 ]
 
 resolver = "2"
